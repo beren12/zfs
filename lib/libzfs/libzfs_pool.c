@@ -347,6 +347,8 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf,
 		case ZPOOL_PROP_FREEING:
 		case ZPOOL_PROP_LEAKED:
 		case ZPOOL_PROP_ASHIFT:
+		case ZPOOL_PROP_MAXBLOCKSIZE:
+		case ZPOOL_PROP_MAXDNODESIZE:
 			if (literal)
 				(void) snprintf(buf, len, "%llu",
 				    (u_longlong_t)intval);
@@ -3135,11 +3137,9 @@ zpool_vdev_online(zpool_handle_t *zhp, const char *path, int flags,
 {
 	zfs_cmd_t zc = {"\0"};
 	char msg[1024];
-	char *pathname;
 	nvlist_t *tgt;
 	boolean_t avail_spare, l2cache, islog;
 	libzfs_handle_t *hdl = zhp->zpool_hdl;
-	int error;
 
 	if (flags & ZFS_ONLINE_EXPAND) {
 		(void) snprintf(msg, sizeof (msg),
@@ -3159,6 +3159,8 @@ zpool_vdev_online(zpool_handle_t *zhp, const char *path, int flags,
 	if (avail_spare)
 		return (zfs_error(hdl, EZFS_ISSPARE, msg));
 
+#ifndef __FreeBSD__
+	char *pathname;
 	if ((flags & ZFS_ONLINE_EXPAND ||
 	    zpool_get_prop_int(zhp, ZPOOL_PROP_AUTOEXPAND, NULL)) &&
 	    nvlist_lookup_string(tgt, ZPOOL_CONFIG_PATH, &pathname) == 0) {
@@ -3179,6 +3181,7 @@ zpool_vdev_online(zpool_handle_t *zhp, const char *path, int flags,
 		if (wholedisk) {
 			const char *fullpath = path;
 			char buf[MAXPATHLEN];
+			int error;
 
 			if (path[0] != '/') {
 				error = zfs_resolve_shortname(path, buf,
@@ -3195,6 +3198,7 @@ zpool_vdev_online(zpool_handle_t *zhp, const char *path, int flags,
 				return (error);
 		}
 	}
+#endif
 
 	zc.zc_cookie = VDEV_STATE_ONLINE;
 	zc.zc_obj = flags;
@@ -5160,6 +5164,7 @@ zpool_get_vdev_prop_value(nvlist_t *nvprop, vdev_prop_t prop, char *prop_name,
 		case VDEV_PROP_ASIZE:
 		case VDEV_PROP_PSIZE:
 		case VDEV_PROP_SIZE:
+		case VDEV_PROP_BOOTSIZE:
 		case VDEV_PROP_ALLOCATED:
 		case VDEV_PROP_FREE:
 		case VDEV_PROP_READ_ERRORS:
